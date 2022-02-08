@@ -15,7 +15,7 @@ function opt = all_tumors
     opt.ImageSize = [221 221];
     
     % Locations of image files for tumor image set
-    opt.ImageLocs = ["../Images/HCC/tumors/", "../Images/ICC/tumors/", "../Images/MCRC/tumors/"]
+    opt.ImageLoc = "../Images/ICC/tumors/";
     
     % Location of bin folder to output tumor image slice set at end of
     % new_preprocessMHA
