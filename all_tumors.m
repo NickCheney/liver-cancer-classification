@@ -14,17 +14,17 @@ function opt = all_tumors
     % (1024 x 1024 is DeepConvSurv requirement)
     opt.ImageSize = [221 221];
     
-    % Location of image files for tumor image set
-    opt.ImageLoc = "../../Data/All_CT/Tumor/";
+    % Locations of image files for tumor image set
+    opt.ImageLocs = ["../Images/HCC/tumors/", "../Images/ICC/tumors/", "../Images/MCRC/tumors/"]
     
     % Location of bin folder to output tumor image slice set at end of
     % new_preprocessMHA
-    opt.BinLoc = strcat("../../Data/Images/Labelled_Tumors/", string(opt.ImageSize(1)), "/Original/");
+    opt.BinLoc = strcat("../Images/Labelled_Tumors/", string(opt.ImageSize(1)), "/Original/");
     
     % Output CSV setup for createCSV
-    opt.CSVname = "../../Data/Labels/HDFS_labelled_tumors.csv";
+    opt.CSVname = "../Labels/HDFS_labelled_tumors.csv";
     opt.CSV_header = {'File', 'Pat_ID', 'Slice_Num', 'HDFS_Code', 'HDFS_Time'};
     
-    opt.Labels = "../../Data/HDFS_Scout_all.xlsx";
+    opt.Labels = "../HDFS_Scout_all.xlsx";
     
 end

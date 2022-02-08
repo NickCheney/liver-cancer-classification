@@ -1,4 +1,4 @@
-functrain_test_split_HDFS.mtion [X,ndx,dbg] = natsort(X,xpr,varargin) %#ok<*SPERR>
+function [X,ndx,dbg] = natsort(X,xpr,varargin) %#ok<*SPERR>
 % Alphanumeric / Natural-Order sort the strings in a cell array of strings (1xN char).
 %
 % (c) 2012 Stephen Cobeldick

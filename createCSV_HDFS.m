@@ -29,7 +29,7 @@ function createCSV_HDFS(conf_f)
     output_fname = options.CSVname;
     out_dir = fileparts(output_fname);
     if ~exist(out_dir, 'dir')
-        mdkir(out_dir);
+        mkdir(out_dir);
     end
 
     

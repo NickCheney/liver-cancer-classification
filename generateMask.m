@@ -8,8 +8,8 @@ function intMask = generateMask(I)
     % This range includes only soft tissue
     Imask = I<-100|I>300;
     % Flips black and white in the mask
-    ImaskInv = imcomplement(Imask);
-    % Clear variables to save memroy
+    ImaskInv = ~(Imask);
+    % Clear variables to save memory
     clear Imask I
     % Generate numeric mask so arithmetic can be used
     intMask = int8(ImaskInv);

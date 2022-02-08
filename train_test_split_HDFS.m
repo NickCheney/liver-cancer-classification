@@ -14,11 +14,11 @@ function train_test_split_HDFS
     rng(1);
     
     % Load in label data for all cancer types
-    all_label_data = readtable("../../Data/HDFS_Scout_all.xlsx");
+    all_label_data = readtable("../HDFS_Scout_all.xlsx");
     
-%     hcc_labels = readtable("../../Data/HCC_survival_sorted.xlsx");
-%     mcrc_labels = readtable("../../Data/TCIA_CRLM_Cases_Final_De-identified");
-%     icc_labels = readtable("../../Data/RFS_Scout.xlsx");
+%     hcc_labels = readtable("../HCC_survival_sorted.xlsx");
+%     mcrc_labels = readtable("../TCIA_CRLM_Cases_Final_De-identified");
+%     icc_labels = readtable("../RFS_Scout.xlsx");
     
     % initialize tables to store train and test samples
     trainSet = cell2table(cell(0,4), 'VariableNames', all_label_data.Properties.VariableNames);
