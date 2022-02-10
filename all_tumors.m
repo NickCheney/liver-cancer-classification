@@ -22,9 +22,9 @@ function opt = all_tumors
     opt.BinLoc = strcat("../Images/Labelled_Tumors/", string(opt.ImageSize(1)), "/Original/");
     
     % Output CSV setup for createCSV
-    opt.CSVname = "../Labels/HDFS_labelled_tumors.csv";
-    opt.CSV_header = {'File', 'Pat_ID', 'Slice_Num', 'HDFS_Code', 'HDFS_Time'};
+    opt.CSVname = "../Labels/labelled_tumors.csv";
+    opt.CSV_header = {'File', 'Pat_ID', 'Slice_Num', 'Code', 'Time'};
     
-    opt.Labels = "../HDFS_Scout_all.xlsx";
+    opt.Labels = "../scout_all.xlsx";
     
 end
