@@ -5,11 +5,12 @@ function new_preprocessMHA(conf_f)
 %             2020.
 %
 %INPUT: conf_f: configuration file for certain variables 
-%OUTPUT: bin files of images, cropped to largest tumor size, background set
-%       to -1000
-%Environment: MATLAB R2021a
-%Notes: 
+%OUTPUT: bin files of liver images, cropped patient by patient by largest
+%        liver dimensions
+%Environment: MATLAB R2022a
+%Notes:         
 %Author: Katy Scott
+%Last Edited by: Nick Cheney
 
     if ischar(conf_f) || isstring(conf_f)
         conf_f = str2func(conf_f);
@@ -19,15 +20,205 @@ function new_preprocessMHA(conf_f)
     else
        error("Input must be struct or name of .m config file") 
     end
-    % For debugging purposes use either of below two
-%     options = erasmus_tumors();
-%     options = msk_tumor();
+
     
-    % Getting list of MHD tumor files (captures Tumor and tumor)
-    baseDirs = dir(strcat(options.ImageLoc, "*umor*.mhd"));
+    % Getting list of MHD liver files
+    mhd_liver_fpaths = dir(strcat(options.img_loc, "*/*/*iver*.mhd"));
+
+    % get column of liver file full and base names
+    liver_base_names = {mhd_liver_fpaths.name}';
+    liver_full_names= strcat({mhd_liver_fpaths.folder}', '\', liver_base_names);
+
+    % get column of liver file cancer types
+    liver_fname_comps = cellfun(@(x) split(x,"\"), liver_full_names, 'UniformOutput', false);
+    cancer_types = cellfun(@(x) x{end-2}, liver_fname_comps, 'UniformOutput', false);
+
+    %get column of unique liver file name keys
+    key = cell(size(liver_full_names,1),1);
+    for i=1:size(key,1)
+        ctype = cancer_types{i};
+        fname = liver_base_names{i};
+
+        if strcmp(ctype,'ICC')
+            key{i} = [ctype fname(1:end-20)];
+        else
+            key{i} = [ctype fname(1:3)];
+        end
+    end
+    % create table of liver files
+    liver_table = table(liver_full_names, cancer_types, key);
+
+    % Getting list of MHD tumor files
+    mhd_tumor_fpaths = dir(strcat(options.img_loc, "*/*/*umor*.mhd"));
+
+    % get column of tumor file full and base names
+    tumor_base_names = {mhd_tumor_fpaths.name}';
+    tumor_full_names= strcat({mhd_tumor_fpaths.folder}', '\', tumor_base_names);
+
+    % get column of tumor file cancer types
+    tumor_fname_comps = cellfun(@(x) split(x,"\"), tumor_full_names, 'UniformOutput', false);
+    cancer_types = cellfun(@(x) x{end-2}, tumor_fname_comps, 'UniformOutput', false);
+
+    %get column of tumor keys matching liver file keys
+    key = cell(size(tumor_full_names,1),1);
+    for i=1:size(key,1)
+        ctype = cancer_types{i};
+        fname = tumor_base_names{i};
+
+        if strcmp(ctype,'ICC')
+            key{i} = [ctype fname(1:end-10)];
+        else
+            key{i} = [ctype fname(1:3)];
+        end
+    end
+
+    % create table of tumor files
+    tumor_table = table(tumor_full_names, cancer_types, key);
+
+    % inner join tables to map liver to tumor files
+    mapped_images = innerjoin(liver_table,tumor_table);
+
+    % Discard tumor images without liver reference images
+    discarded = setdiff(tumor_full_names,mapped_images.tumor_full_names);
+    if size(discarded,1) > 0
+        fprintf("Discarding %d tumor files without liver references:\n", size(discarded,1));
+        fprintf("%s\n", discarded{:});
+        for i=1:size(discarded,1)
+            delete(discarded{i});
+        end
+    end
     
+    % Record final liver image names for masking and cropping
+    final_liver_names = unique(mapped_images.liver_full_names);
+    
+    % to pad edges of liver slices so they don't touch borders
+    pad = 5;
+
+    % to count files processed of each type
+    HCC_count = 1;
+    ICC_count = 1;
+    MCRC_count = 1;
+
+    % ensure output folder exists
+    if ~exist(options.bin_loc,"dir")
+        mkdir(options.bin_loc);
+    end
+
+    % Loop through tumor images, mask, crop and save
+    for i = 1:size(final_liver_names,1)
+        fprintf("Processing liver image %d/%d\n",i,size(final_liver_names,1));
+        % get liver volume
+        liver_fname = final_liver_names{i};
+        info = mha_read_header(liver_fname);
+        liver_vol = single(mha_read_volume(info));
+
+        vol = liver_vol;
+
+        % IMAGE MASKING
+
+        % get associated tumor file names
+        liver_rows = mapped_images(strcmp(mapped_images.liver_full_names,liver_fname),:);
+        tumor_fnames = liver_rows.tumor_full_names;
+        
+        % initialize empty mask
+        tumor_mask = false(size(liver_vol));
+
+        % add each masked tumor vol
+        for j=1:size(tumor_fnames)
+            % get vol
+            info = mha_read_header(tumor_fnames{j});
+            tumor_vol = single(mha_read_volume(info));
+            % get mask
+            new_mask = generateMask(tumor_vol,false);
+            % combine with cumulative mask
+            tumor_mask = tumor_mask | new_mask;
+        end
+        
+        % invert mask and make numerical
+        tumor_mask = ~tumor_mask;
+        % mask image
+        liver_vol = (liver_vol+1000).*tumor_mask - 1000;
+
+        
+        % IMAGE CROPPING
+
+        % Flatten slices into single image
+        flat_image = sum(liver_vol+1000,3);
+        % flatten along different axis
+        flat_image2 = sum(liver_vol+1000,1);
+
+        % get max and min indices of non-zero elements for each axis
+
+        % rows
+        r_start=min(find(sum(flat_image,2)));
+        r_end=max(find(sum(flat_image,2)));
+
+        % cols
+        c_start=min(find(sum(sum(flat_image,3))));
+        c_end=max(find(sum(sum(flat_image,3))));
+
+        % pages
+        p_start = min(find(sum(flat_image2)));
+        p_end = max(find(sum(flat_image2)));
+
+        % make image square
+        height = r_end - r_start;
+        width = c_end - c_start;
+        if height > width
+            c_start = c_start - round((height-width)/2);
+            c_end = c_start + height;
+        else
+            r_start = r_start - round((width-height)/2);
+            r_end = r_start + width;
+        end
+
+        % uncomment to verify masking and cropping worked
+        %{
+        desired_image = 556;
+        if i == desired_image
+            for j=1:size(liver_vol,3)
+                if sum(~tumor_mask(:,:,j),'all') > 0
+                    figure; 
+                    subplot(2,2,1), imshow(liver_vol(r_start-pad:r_end+pad,c_start-pad:c_end+pad,j));
+                    subplot(2,2,2), imshow(vol(r_start-pad:r_end+pad,c_start-pad:c_end+pad,j));
+                    subplot(2,2,3), imshow(~tumor_mask(r_start-pad:r_end+pad,c_start-pad:c_end+pad,j));
+                end
+    
+            end
+        end
+        %}
+        liver_vol = liver_vol(r_start-pad:r_end+pad,c_start-pad:c_end+pad,p_start:p_end);
+
+        % resize image for consistancy
+        liver_vol = int16(imresize(liver_vol,options.fin_img_size));
+
+        % SAVE IMAGE
+        ctype = liver_rows.cancer_types{1};
+
+        if strcmp(ctype,'HCC')
+            cnum = num2str(HCC_count);
+            HCC_count = HCC_count + 1;
+        elseif strcmp(ctype, 'ICC')
+            cnum = num2str(ICC_count);
+            ICC_count = ICC_count + 1;
+        else
+            cnum = num2str(MCRC_count);
+            MCRC_count = MCRC_count + 1;
+        end
+
+        out_ID = strcat(ctype, '_', cnum);
+
+        for slice=1:size(liver_vol,3)
+            out_fname = strcat(options.bin_loc, out_ID, '_', num2str(slice),'.bin');
+            out_file = fopen(out_fname,'w');
+            fwrite(out_file,liver_vol(:,:,slice),'int16');
+            fclose(out_file);
+        end
+    end
+    
+    %{
     % Counter for loop
-    nData = size(baseDirs, 1);
+    nData = size(mhd_tumor_fpaths, 1);
     
     % Recording max height and width for crop/rescaling
     maxHeight = 0;
@@ -41,7 +232,7 @@ function new_preprocessMHA(conf_f)
     % from the images
     for currFile = 1:nData
         fprintf('Computing Size for %i \n', currFile)
-        filename = strcat(options.ImageLoc, baseDirs(currFile).name);
+        filename = strcat(options.img_loc, mhd_tumor_fpaths(currFile).name);
         info = mha_read_header(filename);
         vol = single(mha_read_volume(info));
         
@@ -184,10 +375,10 @@ function new_preprocessMHA(conf_f)
             % Resize image to desired dimension
 %             imageCrR = imresize(imageCr, options.ImageSize);
             
-%             figure(1)
-%             image(imageCr)
-% %             figure(2)
-%             image(imageCrR)
+            figure(1)
+            image(imageCr)
+            figure(2)
+            image(imageCrR)
             
             % replace background 0s with -1000
 %             imageCrRB = imageCrR;
@@ -224,5 +415,5 @@ function new_preprocessMHA(conf_f)
         end
 
     end
-
+    %}
 end
