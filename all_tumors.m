@@ -18,7 +18,7 @@ Adapted from code written by Katy Scott
     % (32 x 32 is for LeNet)
     % (299 x 299 is Inception requirement)
     % (1024 x 1024 is DeepConvSurv requirement)
-    opt.fin_img_size = [256 256];
+    opt.fin_img_size = [32 32];
     
     % record image folder locations
     opt.img_loc = "../Images/";
