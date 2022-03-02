@@ -77,6 +77,7 @@ function new_preprocessMHA(conf_f)
 
     % inner join tables to map liver to tumor files
     mapped_images = innerjoin(liver_table,tumor_table);
+    mapped_images
 
     % Discard tumor images without liver reference images
     discarded = setdiff(tumor_full_names,mapped_images.tumor_full_names);
@@ -190,7 +191,7 @@ function new_preprocessMHA(conf_f)
         liver_vol = liver_vol(r_start-pad:r_end+pad,c_start-pad:c_end+pad,p_start:p_end);
 
         % resize image for consistancy
-        liver_vol = int16(imresize(liver_vol,options.fin_img_size));
+        % liver_vol = int16(imresize(liver_vol,options.fin_img_size));
 
         % SAVE IMAGE
         ctype = liver_rows.cancer_types{1};
